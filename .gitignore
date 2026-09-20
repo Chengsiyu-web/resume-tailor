@@ -1,0 +1,9 @@
+node_modules/
+.env
+backups/
+my-data.json
+resumes/
+materials/
+data/
+server.log
+design-previews/

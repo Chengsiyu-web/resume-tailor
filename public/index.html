@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Tailor — JD 定制化简历工具</title>
+<meta name="description" content="贴入 JD，分析岗位真实要求，diff 式定制简历，跟踪投递进度，按轮次生成面试准备。简历不出你电脑。">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <span class="brand">Resume<span class="brand-dot">·</span>Tailor</span>
+    <div class="nav-items">
+      <button class="nav-item" data-view="profile">我的档案</button>
+      <button class="nav-item on" data-view="analyze">新分析</button>
+      <button class="nav-item" data-view="track">投递看板</button>
+      <button class="nav-item" data-view="settings">设置</button>
+    </div>
+    <span class="nav-status" id="navStatus"></span>
+  </div>
+</nav>
+
+<div class="shell">
+
+  <!-- ============ 视图 1：新分析（落地页 + 向导） ============ -->
+  <section class="view on" id="viewAnalyze">
+
+    <!-- ============ 落地页（独立状态，点 CTA 转场进向导） ============ -->
+    <section id="landing">
+      <div class="landing-screen">
+        <div class="landing-wordmark">Resume Tailor</div>
+        <div class="landing-wordmark-sub">读懂岗位，再改简历</div>
+        <div class="landing-lede">贴入 JD，先给你讲清楚 JD 背后的那些事，岗位真的要做什么；再结合定制化分析，告诉你适不适合投，差在哪，怎么改简历。改完后可以记录追踪状态，还可以准备面试～</div>
+        <div class="landing-chips">
+          <span class="landing-chip">逐条 diff，改哪删哪看得见</span>
+          <span class="landing-chip">素材库佐证，不造事实</span>
+          <span class="landing-chip">全程本地存储，服务端无状态</span>
+        </div>
+        <div class="landing-ctas">
+          <button class="btn" id="landingCta">开始使用</button>
+          <button class="btn ghost" id="landingSetupBtn">先去配置模型</button>
+        </div>
+        <div class="hero-privacy landing-privacy">简历和投递记录只存在你的浏览器里</div>
+      </div>
+    </section>
+
+    <!-- 向导（初始隐藏，转场进入） -->
+    <div class="wizard hidden" id="wizardBox">
+      <nav class="rail" aria-label="步骤">
+        <button class="btn ghost sm" id="backToLandingBtn" style="margin-bottom:14px">← 回首页</button>
+        <div class="rail-sub" id="baseInfo"></div>
+        <div class="rail-steps" id="railSteps"></div>
+      </nav>
+
+      <main style="min-width:0">
+
+        <!-- 步骤 1 · 输入 -->
+        <section class="step-panel on" id="step1">
+          <div class="step-head">
+            <div class="step-title">贴入 JD，选好 base 简历</div>
+            <div class="step-sub">分析约 30-90 秒，产出 5 个可逐步确认的判断</div>
+          </div>
+          <div class="card">
+            <textarea id="jdText" placeholder="把目标岗位的 JD 原文完整粘贴到这里……"></textarea>
+            <div class="field-help">支持全文粘贴，不需要清洗格式</div>
+            <div class="field">
+              <label class="field-label">base 简历</label>
+              <div class="resume-pick-grid" id="resumePickGrid"></div>
+            </div>
+            <div class="step-foot">
+              <span class="loading hidden" id="analyzeLoading"><span class="spinner"></span>分析中…</span>
+              <button class="btn" id="analyzeBtn">开始分析</button>
+            </div>
+            <div class="error hidden" id="analyzeError"></div>
+            <details class="fold" style="margin-top:16px">
+              <summary>素材与隐藏经历池<span class="fold-n">提升命中率的私货</span><span class="chev">▶</span></summary>
+              <div class="fold-body">
+                <p style="font-size:12px;color:#8a8f98;margin:0 0 6px">素材库是经历弹药库（简历里没有的、被舍弃的都算）、隐藏经历池放更私密的记录，分析时会自动参考。</p>
+                <span style="font-size:12px"><a href="#" onclick="switchView('profile');return false" style="color:#18191b;font-weight:600;text-decoration:none;border-bottom:1px solid #c2c4c8">去我的档案维护 →</a></span>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <!-- 步骤 2 · 岗位解构 -->
+        <section class="step-panel" id="step2">
+          <div class="step-head">
+            <div class="step-title">这到底是份什么工作</div>
+            <div class="step-sub">五层解构：谁写的 → 任务结构 → 话术翻译 → 要求排序 → 加分项情报</div>
+          </div>
+          <div class="recap hidden" id="recap2"></div>
+          <div class="card">
+            <div id="jdInsightBody"></div>
+            <div class="step-foot">
+              <button class="btn ghost" data-goto="1">上一步</button>
+              <button class="btn" data-goto="3">下一步</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 步骤 3 · 要求 VS 现状 -->
+        <section class="step-panel" id="step3">
+          <div class="step-head">
+            <div class="step-title">岗位匹配度判断</div>
+            <div class="step-sub">对照当前简历逐条判定——绿色放心，黄色改措辞就能救，红色练面试</div>
+          </div>
+          <div class="recap hidden" id="recap3"></div>
+          <div class="card">
+            <div class="verdict hidden" id="verdictBlock">
+              <span class="score" id="verdictScore"></span>
+              <div class="v-main">
+                <div class="v-level" id="verdictLevel"></div>
+                <div class="v-reason" id="verdictReason"></div>
+              </div>
+            </div>
+            <div class="sec-label">硬门槛 <span style="font-weight:500;color:#8a8f98">没有就被筛掉</span></div>
+            <div id="hardReqList"></div>
+            <div class="sec-label">加分项 <span style="font-weight:500;color:#8a8f98">差异化竞争</span></div>
+            <div id="plusReqList"></div>
+            <div class="sec-label">核心词 <span class="sec-count" id="coreKwCount"></span></div>
+            <div class="kw-list" id="coreKwList"></div>
+            <div class="sec-label">加分词 <span class="sec-count" id="plusKwCount"></span></div>
+            <div class="kw-list" id="plusKwList"></div>
+            <div class="narrative" id="narrativeShift"></div>
+            <div class="step-foot">
+              <button class="btn ghost" data-goto="2">上一步</button>
+              <span id="step3Actions"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 步骤 4 · diff 确认 -->
+        <section class="step-panel" id="step4">
+          <div class="step-head">
+            <div class="step-title">逐条确认修改</div>
+            <div class="step-sub">红 = 原文，绿 = 改后（可直接编辑）；不勾选的条目保持原样</div>
+          </div>
+          <div class="recap hidden" id="recap4"></div>
+          <div class="card">
+            <div id="diffList"></div>
+            <div class="apply-config">
+              <div class="apply-options" id="modeToggle">
+                <button data-mode="new" class="active">存为新版本</button>
+                <button data-mode="edit">覆盖原简历</button>
+              </div>
+              <input type="text" id="companyName" placeholder="公司名（新版本命名用）" class="hidden">
+            </div>
+            <div class="step-foot">
+              <span class="hint" id="diffHint"></span>
+              <button class="btn" id="applyBtn">应用修改</button>
+            </div>
+            <div class="error hidden" id="applyError"></div>
+          </div>
+        </section>
+
+        <!-- 步骤 5 · 结果 -->
+        <section class="step-panel" id="step5">
+          <div class="step-head">
+            <div class="step-title">完成</div>
+            <div class="step-sub">应用结果与关键词验证</div>
+          </div>
+          <div class="card">
+            <div class="result-line" id="resultSummary"></div>
+            <div class="stat-row">
+              <div class="stat"><span class="v" id="statApplied">0</span><span class="l">已应用</span></div>
+              <div class="stat"><span class="v bad" id="statSkipped">0</span><span class="l">被跳过</span></div>
+              <div class="stat"><span class="v good" id="statCoverage">0%</span><span class="l">核心词覆盖</span></div>
+            </div>
+            <div id="applyResultList"></div>
+            <div class="sec-label" style="margin-top:18px;">关键词验证</div>
+            <div class="kw-list" id="coverageList"></div>
+            <iframe id="preview"></iframe>
+            <div class="step-foot">
+              <a class="open-link" id="openPreview">在新标签页打开简历 ↗</a>
+              <span style="display:inline-flex;gap:8px;flex-wrap:wrap">
+                <button class="btn ghost" id="downloadBtn">下载简历文件</button>
+                <button class="btn ghost" data-goto="1">再定制一个岗位</button>
+                <button class="btn" id="recordApplyBtn">记录这次投递</button>
+              </span>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </section>
+
+  <!-- ============ 视图 2：我的档案（简历库 + 素材库 + 隐藏池） ============ -->
+  <section class="view" id="viewProfile">
+    <div class="page-head">
+      <div class="page-title">我的档案</div>
+      <div class="page-sub">简历底稿 + 素材弹药库——分析时会全部用上，只存在你的浏览器里</div>
+    </div>
+
+    <!-- 简历库 -->
+    <div class="profile-sec-label">简历库 <span style="font-weight:500;letter-spacing:0;text-transform:none;color:#8a8f98">支持 PDF 和 HTML</span></div>
+    <div class="dropzone" id="dropzone">
+      <div class="big">📄</div>
+      点击选择或拖入简历文件（PDF / HTML，可多选）
+    </div>
+    <input type="file" id="libraryFileInput" accept=".html,.htm,.pdf" multiple class="hidden">
+    <div class="resume-grid" id="resumeGrid" style="margin-top:14px"></div>
+    <div class="track-empty" id="libraryEmpty">
+      <div class="big">🗂</div>
+      还没有简历——上传第一份开始（PDF 会自动解析成可编辑结构）
+    </div>
+
+    <!-- 素材库 -->
+    <div class="profile-sec-label" style="margin-top:48px">素材库 <span style="font-weight:500;letter-spacing:0;text-transform:none;color:#8a8f98">简历里没有的、被舍弃的、性格里的——JD 定制时会从这里取材</span></div>
+    <div class="card" id="materialsCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="hint" style="font-size:12px;color:#8a8f98">先填简历里没有的经历（班干部、社团、比赛都算）；AI 分析时只从这里取材，不会编造</span>
+        <button class="btn ghost sm" id="seedBtn">✨ 从简历提取素材</button>
+      </div>
+      <div id="seedBox" class="hidden" style="margin-bottom:14px">
+        <textarea id="seedText" style="min-height:110px" placeholder="粘贴简历全文或任何自述文本（也可以补充一句提示，比如「我当过班长」「做过支教」）……"></textarea>
+        <div class="step-foot" style="margin-top:10px">
+          <span class="hint">AI 只摘文本里真实存在的内容，出卡后你逐张勾选</span>
+          <span><button class="btn ghost sm" id="seedCancel">取消</button> <button class="btn sm" id="seedGo">提取</button></span>
+        </div>
+        <div class="error hidden" id="seedError"></div>
+        <div id="seedCandidates" style="margin-top:12px"></div>
+      </div>
+      <div class="mat-add-row">
+        <button class="btn ghost sm" data-add-card="exp">＋ 经历</button>
+        <button class="btn ghost sm" data-add-card="trait">＋ 特质</button>
+        <button class="btn ghost sm" data-add-card="result">＋ 成果</button>
+        <button class="btn ghost sm" data-add-card="note">＋ 随手记</button>
+      </div>
+      <div id="matCards"></div>
+      <div class="track-empty" id="matEmpty" style="padding:32px 0">
+        <div class="big">🎯</div>
+        素材库还是空的——点上面任意「＋」开始记<br>
+        <span style="font-size:12px">不确定记什么？从「＋ 经历」开始，把当班干部、带社团的事写进来</span>
+      </div>
+    </div>
+
+    <!-- 隐藏经历池 -->
+    <details class="fold" style="margin-top:20px">
+      <summary>隐藏经历池<span class="fold-n">更私密的自由记录</span><span class="chev">▶</span></summary>
+      <div class="fold-body">
+        <p style="font-size:12px;color:#8a8f98;margin:0 0 6px">没上简历的真实信息，自由格式。分析时自动参考（引入会标注来源）。</p>
+        <textarea id="hiddenPoolText" style="min-height:100px" placeholder="想到什么记什么，格式不限……"></textarea>
+        <span class="saved-hint" id="poolSaved" style="visibility:hidden">已保存 ✓</span>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ 视图 3：投递看板 ============ -->
+  <section class="view" id="viewTrack">
+    <div class="page-head">
+      <div class="page-title">投递看板</div>
+      <div class="page-sub">状态管线 + 按下一场轮次生成面试准备</div>
+    </div>
+    <div class="funnel" id="funnel"></div>
+    <div class="track-toolbar">
+      <div class="filter-chips" id="trackFilters"></div>
+      <button class="btn" id="newAppBtn">＋ 记一笔投递</button>
+    </div>
+
+    <div class="card hidden" id="newAppForm" style="margin-bottom:16px">
+      <div class="field" style="margin-top:0"><label class="field-label">JD 原文</label>
+        <textarea id="naJdText" style="min-height:110px" placeholder="粘贴目标岗位 JD 原文（面试准备会基于它生成）……"></textarea></div>
+      <div class="field"><label class="field-label">公司 / 岗位 / 投递日</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input type="text" id="naCompany" placeholder="公司" style="flex:1;min-width:130px">
+          <input type="text" id="naRole" placeholder="岗位" style="flex:1;min-width:130px">
+          <input type="date" id="naDate" style="flex:none">
+        </div></div>
+      <div class="field"><label class="field-label">关联简历（可选）</label>
+        <select id="naResume"></select></div>
+      <div class="step-foot" style="margin-top:14px">
+        <span class="hint">保存后可生成面试准备（会自动补做岗位分析）</span>
+        <span><button class="btn ghost" id="naCancel">取消</button> <button class="btn" id="naSave">保存</button></span>
+      </div>
+      <div class="error hidden" id="naError"></div>
+    </div>
+
+    <div class="app-list" id="appList"></div>
+    <div class="track-empty" id="trackEmpty">
+      <div class="big">📮</div>
+      还没有投递记录<br>定制完成后点「记录这次投递」，或点右上角「记一笔投递」
+    </div>
+  </section>
+
+  <!-- ============ 视图 4：设置 ============ -->
+  <section class="view" id="viewSettings">
+    <div class="page-head">
+      <div class="page-title">设置</div>
+      <div class="page-sub">模型服务和数据——全部只存在你的浏览器里</div>
+    </div>
+    <div class="settings-grid">
+
+      <div class="card">
+        <div class="settings-head">模型服务</div>
+        <div class="settings-note" style="margin:2px 0 12px">用自己的 API Key 调用 OpenAI 兼容接口；Key 仅存于本浏览器，请求时转发、服务端不留存。</div>
+        <label class="field-label">服务商</label>
+        <div class="radio-cards" id="providerCards"></div>
+        <div class="field" id="customBaseUrlField"><label class="field-label">API 地址（base URL）</label>
+          <input type="url" id="llmBaseUrl" placeholder="https://api.example.com/v1"></div>
+        <div class="field"><label class="field-label">模型</label>
+          <input type="text" id="llmModel" placeholder="模型名，如 deepseek-chat"></div>
+        <div class="field"><label class="field-label">API Key</label>
+          <div class="key-row">
+            <input type="password" id="llmApiKey" placeholder="sk-…" autocomplete="off">
+            <button class="btn ghost sm" id="keyToggle" type="button">显示</button>
+          </div></div>
+        <div class="step-foot" style="margin-top:14px">
+          <span class="saved-hint" id="llmSaved" style="visibility:hidden">已保存 ✓</span>
+          <span style="display:inline-flex;gap:8px">
+            <button class="btn ghost" id="llmPingBtn">测试连接</button>
+            <button class="btn" id="llmSaveBtn">保存</button>
+          </span>
+        </div>
+        <div class="error hidden" id="llmError"></div>
+        <div style="font-size:11.5px;color:#8a8f98;margin-top:10px" id="pingResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="settings-head">数据</div>
+        <div class="settings-note" style="margin:2px 0 12px">导出全部数据（简历、素材、投递记录、设置）为 JSON 备份；换设备时导入即可迁移。导出文件含 API Key，妥善保管。</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn ghost" id="exportBtn">导出数据</button>
+          <button class="btn ghost" id="importBtn">导入数据</button>
+          <button class="btn danger" id="wipeBtn">清空全部数据</button>
+        </div>
+        <input type="file" id="importFileInput" accept=".json" class="hidden">
+        <div class="error hidden" id="dataError"></div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
